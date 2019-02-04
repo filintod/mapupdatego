@@ -99,7 +99,8 @@ func coalesceStrSlice(childVal, parentVal reflect.Value) {
 
 	for i := 0; i < childVal.Len(); i++ {
 		cv := childVal.Index(i).String()
-		if PREFIX.HasRemove(cv) {
+		switch {
+		case PREFIX.HasRemove(cv):
 			cv = setInherit(PREFIX.TrimRemove(cv))
 			if _, ok := parentValKeys[cv]; ok {
 				parentValKeys[cv] = parentValKeys[cv][1:]
@@ -107,37 +108,42 @@ func coalesceStrSlice(childVal, parentVal reflect.Value) {
 					delete(parentValKeys, cv)
 				}
 			}
-		} else if PREFIX.HasRemoveAll(cv) {
+		case PREFIX.HasRemoveAll(cv):
 			cv = setInherit(PREFIX.TrimRemoveAll(cv))
 			if _, ok := parentValKeys[cv]; ok {
 				delete(parentValKeys, cv)
 			}
-		} else if PREFIX.HasAppend(cv) {
+		case PREFIX.HasAppend(cv):
 			cv = setInherit(PREFIX.TrimAppend(cv))
 			if _, ok := parentValKeys[cv]; !ok {
 				parentValSlice = append(parentValSlice, cv)
 				parentValKeys[cv] = []int{len(parentValSlice)}
 			}
 
-		} else if PREFIX.HasAppendAll(cv) {
+		case PREFIX.HasAppendAll(cv):
 			cv = setInherit(PREFIX.TrimAppendAll(cv))
 			if _, ok := parentValKeys[cv]; ok {
 				parentValKeys[cv] = append(parentValKeys[cv], len(parentValSlice))
 			} else {
 				parentValKeys[cv] = []int{len(parentValSlice)}
 			}
-		} else if PREFIX.HasIndex(cv) {
+
+		case PREFIX.HasIndex(cv):
 			// TODO: implement
-		} else if PREFIX.HasIndexAppend(cv) {
+
+		case PREFIX.HasIndexAppend(cv):
 			// TODO: implement
-		} else if PREFIX.HasIndexAppendAll(cv) {
+
+		case PREFIX.HasIndexAppendAll(cv):
 			// TODO: implement
-		} else if isInheriting { // here we don't have a prefix but we have had in the past
+
+		case isInheriting: // here we don't have a prefix but we have had in the past
 			if _, ok := parentValKeys[cv]; !ok {
 				parentValSlice = append(parentValSlice, cv)
 				parentValKeys[cv] = []int{len(parentValSlice)}
 			}
-		} else {
+
+		default:
 			newSlice = append(newSlice, cv)
 		}
 	}
@@ -226,51 +232,53 @@ func coalesce(childVal, parentVal reflect.Value, skipKeys map[string]bool) {
 }
 
 // RenderCharts merges the properties of parents onto their children (in place)
-func SortDependencies(maps []map[string]interface{}, omitFields map[string]bool, profileType string) {
-	//
-	parentChildren := make(map[string][]string)
-	roots := make([]map[string]interface{}, 0)
-	visited := make(map[string]bool)
-
-	// create the parent to children map
-	for _, info := range maps {
-		// roots are the ones without parent (@bases not found or @bases=[])
-		parents := info["@bases"]
-		if parents == nil || len(parents.([]string)) == 0 {
-			roots = append(roots, info)
-			continue
-		}
-		for _, parent := range parents.([]string) {
-			if _, ok := parentChildren[parent]; !ok {
-				parentChildren[parent] = make([]string, 0)
-			}
-			parentChildren[parent] = append(parentChildren[parent], info.GetName())
-		}
-
-	}
-
-	// we go from roots down as this is a simpler structure where there is only one parent per child
-	// and append children to roots slice and to visited to avoid duplicated work
-	var parentProfile string
-
-	for len(roots) != 0 {
-		// remove top parent from roots and shift roots to the left
-		parentProfile, roots = roots[0], roots[1:]
-		p := reflect.ValueOf(s.getParentProfile(parentProfile, profileType)).Elem()
-		for _, childProfile := range parentChildren[parentProfile] {
-			c := reflect.ValueOf(s.getParentProfile(childProfile, profileType)).Elem()
-			coalesce(c, p, omitFields)
-
-			if !visited[childProfile] {
-				roots = append(roots, childProfile)
-				visited[childProfile] = true
-			}
-		}
-	}
-	// now that everything is correct set the wasRendered flag to true
-	for hp := range s.iterateProfiles(profileType) {
-		hp.SetRender()
-	}
-}
+//func SortDependencies(maps []map[string]interface{}, omitFields map[string]bool, profileType string) {
+//	//
+//	parentChildren := make(map[string][]string)
+//	roots := make([]map[string]interface{}, 0)
+//	visited := make(map[string]bool)
+//
+//	// create the parent to children map
+//	for _, info := range maps {
+//		// roots are the ones without parent (@bases not found or @bases=[])
+//		parents := info["@bases"]
+//		if parents == nil || len(parents.([]string)) == 0 {
+//			roots = append(roots, info)
+//			continue
+//		}
+//		for _, parent := range parents.([]string) {
+//			if _, ok := parentChildren[parent]; !ok {
+//				parentChildren[parent] = make([]string, 0)
+//			}
+//			parentChildren[parent] = append(parentChildren[parent], info.GetName())
+//		}
+//
+//	}
+//
+//	// we go from roots down as this is a simpler structure where there is only one parent per child
+//	// and append children to roots slice and to visited to avoid duplicated work
+//	var parentProfile string
+//
+//	for len(roots) != 0 {
+//		// remove top parent from roots and shift roots to the left
+//		parentProfile, roots = roots[0], roots[1:]
+//		p := reflect.ValueOf(s.getParentProfile(parentProfile, profileType)).Elem()
+//		for _, childProfile := range parentChildren[parentProfile] {
+//			c := reflect.ValueOf(s.getParentProfile(childProfile, profileType)).Elem()
+//			coalesce(c, p, omitFields)
+//
+//			if !visited[childProfile] {
+//				roots = append(roots, childProfile)
+//				visited[childProfile] = true
+//			}
+//		}
+//	}
+//	// now that everything is correct set the wasRendered flag to true
+//	for hp := range s.iterateProfiles(profileType) {
+//		hp.SetRender()
+//	}
+//}
 
 var PREFIX = prefix.NewPrefix()
+
+var REGEX_HELPER = `{{\/\*[\s\S]+?\*\/}}\s+{{-? define "(?P<tname>[^"]+)" [\s\S]+?{{\-?\s+end\s+-?}}\n{2}`
