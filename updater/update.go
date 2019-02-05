@@ -211,23 +211,25 @@ func coalesceSlices(childVal, parentVal reflect.Value) {
 }
 
 // coalesce recursively goes through every element not present in child but present in parent and copies it
-func coalesce(childVal, parentVal reflect.Value, skipKeys map[string]bool) {
+func coalesce(childVal, parentVal interface{}, skipKeys map[string]bool) {
 
-	switch childVal.Kind() {
-	case reflect.Map:
-		coalesceMap(childVal, parentVal, skipKeys)
+	switch childVal.(type) {
 
-	case reflect.Slice:
-		coalesceSlices(childVal, parentVal)
+	case map[string]interface{}:
+		print("MAP: %v", childVal)
 
-	case reflect.Ptr:
-		// TODO: implement
+	case []string:
+		print("STR list: %v", childVal)
 
-	case reflect.String, reflect.Int, reflect.Bool, reflect.Float64:
-		zero := reflect.Zero(childVal.Type()).Interface()
-		if childVal.Interface() == zero && parentVal.Interface() != zero {
-			childVal.Set(parentVal)
-		}
+	case []int, []float64, []bool:
+		print("list: %v", childVal)
+
+	case string, int, bool, float64:
+		print("Scalar: %v", childVal)
+	default:
+		v := reflect.ValueOf(childVal)
+		k := v.Kind()
+		print(k)
 	}
 }
 
